@@ -5,8 +5,7 @@ import com.gdelboni.financialai.application.output.PersistTransactionOutput;
 import com.gdelboni.financialai.domain.Category;
 import com.gdelboni.financialai.domain.Transaction;
 import com.gdelboni.financialai.domain.TransactionRepository;
-
-import java.math.BigDecimal;
+import org.springframework.stereotype.Service;
 
 public class PersistTransactionUseCase {
     private final TransactionRepository transactionRepository;
