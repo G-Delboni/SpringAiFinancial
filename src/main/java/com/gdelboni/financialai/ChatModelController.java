@@ -17,4 +17,5 @@ public class ChatModelController {
     String chatModel(String prompt) {
         return this.chatModel.call(prompt);
     }
+
 }
