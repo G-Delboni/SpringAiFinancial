@@ -1,8 +1,10 @@
 package com.gdelboni.financialai.domain;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @Getter
+@AllArgsConstructor
 public class Transaction {
     private TransactionID transactionId;
     private String description;
