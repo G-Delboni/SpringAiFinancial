@@ -11,19 +11,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api")
 public class ChatClientController {
     private final ChatClient chatClient;
     public ChatClientController(ChatClient chatClient) {
         this.chatClient = chatClient;
     }
 
-    @GetMapping("/chat")
     String chatModel(String prompt) {
         return this.chatClient.prompt().user(prompt).call().content();
     }
 
-    @PostMapping("/chat")
     public ResponseEntity<String> chatWithModel(String prompt) {
         try {
             String response =  this.chatClient.prompt().user(prompt).call().content();

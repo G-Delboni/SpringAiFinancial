@@ -13,8 +13,7 @@ import java.io.IOException;
 import java.util.Set;
 
 public class RateLimitFilter extends OncePerRequestFilter {
-    private static final Set<String> AI_PATHS =
-            Set.of("/transaction/ai", "/api/transcribe", "/api/chat", "/chatmodel");
+    private static final Set<String> AI_PATHS = Set.of("/transaction/ai");
 
     private final FixedWindowRateLimiter generalLimiter;
     private final FixedWindowRateLimiter aiLimiter;
