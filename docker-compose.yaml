@@ -12,7 +12,7 @@ services:
     volumes:
       - transaction_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uapp", "-papp"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uapp", "${MYSQL_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 5

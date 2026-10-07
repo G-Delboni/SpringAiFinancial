@@ -5,6 +5,7 @@ import com.gdelboni.financialai.application.output.ListTransactionByCategoryUseC
 import com.gdelboni.financialai.domain.Category;
 import com.gdelboni.financialai.infraestructure.http.request.TransactionRequest;
 import com.gdelboni.financialai.infraestructure.http.response.TransactionResponse;
+import jakarta.transaction.InvalidTransactionException;
 import org.springframework.ai.audio.transcription.TranscriptionModel;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,7 +43,7 @@ public class TransactionController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public TransactionResponse createTransaction(@RequestBody TransactionRequest request) {
+    public TransactionResponse createTransaction(@RequestBody TransactionRequest request) throws InvalidTransactionException {
         var transaction = persistTransactionUseCase.execute(request.toInput());
         return TransactionResponse.from(transaction);
     }
