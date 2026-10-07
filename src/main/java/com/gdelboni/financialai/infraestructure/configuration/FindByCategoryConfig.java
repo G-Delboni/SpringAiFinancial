@@ -1,6 +1,5 @@
 package com.gdelboni.financialai.infraestructure.configuration;
 
-import com.gdelboni.financialai.application.PersistTransactionUseCase;
 import com.gdelboni.financialai.application.output.ListTransactionByCategoryUseCase;
 import com.gdelboni.financialai.domain.TransactionRepository;
 import org.springframework.context.annotation.Bean;
