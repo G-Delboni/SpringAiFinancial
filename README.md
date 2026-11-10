@@ -4,63 +4,40 @@
 
 Register expenses through a REST API — or just send an audio saying what you spent.
 
-![Java 21](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.1-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)
-![Spring AI](https://img.shields.io/badge/Spring%20AI-2.0.1-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
-![Spring Security](https://img.shields.io/badge/Spring%20Security-API%20Key-6DB33F?style=for-the-badge&logo=springsecurity&logoColor=white)
-![OpenRouter](https://img.shields.io/badge/OpenRouter-6467F2?style=for-the-badge)
-![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker%20Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+🌐 **English** · [Português](README.pt-BR.md)
+
+![Java 21](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white) ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.1-6DB33F?style=for-the-badge&logo=springboot&logoColor=white) ![Spring AI](https://img.shields.io/badge/Spring%20AI-2.0.1-6DB33F?style=for-the-badge&logo=spring&logoColor=white) ![Spring Security](https://img.shields.io/badge/Spring%20Security-API%20Key-6DB33F?style=for-the-badge&logo=springsecurity&logoColor=white) ![OpenRouter](https://img.shields.io/badge/OpenRouter-6467F2?style=for-the-badge) ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white) ![Docker](https://img.shields.io/badge/Docker%20Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
 ---
 
 ## 📌 About
 
-FinancialAI lets users register what they spent and then understands messages like:
+FinancialAI lets users register what they spent and understands messages like:
 
-> *"Gastei 35 reais na padaria." · "Paguei 80 reais na farmácia." · "Comprei um fone online por 150 reais."*
+> *“Gastei 35 reais na padaria.” · “Paguei 80 reais na farmácia.” · “Comprei um fone online por 150 reais.”*
 
-> *"I spent 35 reais at the bakery." · "I paid 80 reais at the pharmacy." · "I bought headphones online for 150 reais."*
+> *“I spent 35 reais at the bakery.” · “I paid 80 reais at the pharmacy.” · “I bought headphones online for 150 reais.”*
 
 The core idea of the project is a **strict separation of responsibilities**:
 
 > 🧠 **The AI interprets what the user said.**
+>
 > ⚙️ **Java decides what can actually be executed and persists the data.**
+>
 > 🔐 **A security layer decides who may ask, and how often.**
 
-The model never touches the database. It can only call the **tools** that Java exposes — each one backed by a regular use case — and every request reaches the model only after it has passed authentication and rate limiting.
+The model never touches the database. It can only call the **tools** that Java exposes — each one backed by a regular use case — and every request reaches the model only after it has passed rate limiting and authentication.
 
 This project was built as a portfolio project for a bootcamp. After the first working version, I focused on a question that most tutorials skip: *what happens when someone other than me calls this API?*
 
 ## 📑 Table of Contents
 
-- [What changed in this version](#-what-changed-in-this-version)
 - [Technologies](#-technologies)
 - [Features](#-features)
-- [Security](#-security)
 - [The process](#-the-process)
 - [What I learned](#-what-i-learned)
 - [How can it be improved](#-how-can-it-be-improved)
 - [Running the project](#-running-the-project)
-
----
-
-## 🆕 What changed in this version
-
-The first version had a working AI flow but **no protection at all**: every endpoint was open, including the ones that call the language model. Anyone who found the URL could spend the model quota (which, on a free plan, is small) or write transactions into the database.
-
-This version adds (and removes):
-
-| Change | Why |
-| --- | --- |
-| **Experimental endpoints removed** (`/chatmodel`, `/api/chat`, `/api/transcribe`) | They forwarded raw prompts to the model with no business purpose, which only enlarged the attack surface |
-| **API key authentication** (`X-API-Key` header, Spring Security, stateless) | Only clients that know the key can use the API |
-| **Rate limiting by client IP**, with a stricter limit for AI endpoints | Protects the model quota and slows down abuse |
-| **Rate limit before authentication** | Guessing the key is also throttled |
-| **Fail-fast configuration** | The app refuses to start with a missing or short API key |
-| **Upload size limit** (2 MB) | Audio files cannot exhaust memory or bandwidth |
-| **Secrets only through environment variables** | No keys in the repository |
-| **Everything configurable by properties** | Limits change without touching the code |
 
 ---
 
@@ -78,7 +55,7 @@ This version adds (and removes):
 | Utilities | Lombok |
 | Tools | IntelliJ IDEA, Insomnia, curl |
 
-Spring AI's `ChatClient` connects the application to the model and registers the use cases as **tools** the model may call. Spring AI's `TranscriptionModel` turns an audio file into text.
+Spring AI’s `ChatClient` connects the application to the model and registers the use cases as **tools** the model may call. Spring AI’s `TranscriptionModel` turns an audio file into text.
 
 ---
 
@@ -89,20 +66,23 @@ Spring AI's `ChatClient` connects the application to the model and registers the
 A Transaction is a financial record.
 
 - Identified by a UUID
-- Description and amount
+- Description (1 to 255 characters) and amount (a positive whole number)
 - Category: `GROCERIES`, `PHARMA`, `E_BUY`
+
+These rules are checked in the constructor of the domain class `Transaction`, so they apply both to the REST endpoint and to the tools called by the model.
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `POST` | `/transaction` | Create a transaction (JSON body) |
 | `GET` | `/transaction/{category}` | List transactions of a category |
 | `POST` | `/transaction/ai` | Send an **audio** (multipart `file`); the AI registers or lists transactions |
+| `POST` | `/api/transcribe` | Send an **audio** (multipart `file`) and get only its transcription |
 
-All of them require the `X-API-Key` header. `/transaction/ai` is the only endpoint that reaches the model, so it is the only one under the stricter AI rate limit.
+All of them require the `X-API-Key` header.
 
 ### 🎙 Voice-driven registration
 
-Send an audio such as *"Gastei 35 reais na padaria"* and the application:
+Send an audio such as *“Gastei 35 reais na padaria”* (*“I spent 35 reais at the bakery”*) and the application:
 
 1. transcribes it to text,
 2. lets the model interpret the sentence and pick the right tool,
@@ -122,23 +102,7 @@ The model can only do what these two tools allow.
 
 > ⚠️ **Known limitation:** the audio flow needs a provider that offers speech-to-text through an OpenAI-compatible endpoint (configured here for `whisper-1`, in Brazilian Portuguese). I could not find a free model for transcription or text-to-speech, so the voice features depend on a provider with access to one. Text-to-speech is not implemented.
 
----
-
-## 🔐 Security
-
-### Threats and countermeasures
-
-| Threat | Countermeasure |
-| --- | --- |
-| Anyone calling endpoints that use the model | API key required on every request (`401` otherwise) |
-| Exhausting the free model quota | Rate limiting, much stricter on AI endpoints |
-| Brute-forcing the API key | Rate limiting runs **before** authentication; keys need 32+ characters |
-| Timing attacks on the key comparison | Constant-time comparison (`MessageDigest.isEqual`) |
-| Bypassing the limit by forging `X-Forwarded-For` | The limiter uses only the real connection address |
-| Oversized uploads | Multipart limits of 2 MB |
-| Leaked secrets | Environment variables only; nothing sensitive in the repository |
-
-### API key authentication
+### 🔐 API key authentication
 
 - The client sends `X-API-Key: <key>` on each request.
 - The server is **stateless**: no session, no cookies. That is also why CSRF protection is disabled — there is no ambient credential for a browser to send on its own.
@@ -146,7 +110,7 @@ The model can only do what these two tools allow.
 - Without a valid key, the response is `401 Unauthorized` with an empty body.
 - The key is read from `APP_API_KEY`. **If it is missing or shorter than 32 characters, the application does not start.**
 
-### Rate limiting
+### ⏱ Rate limiting
 
 - Counts requests **per client IP** in a fixed time window (1 minute).
 - Two independent tiers:
@@ -168,7 +132,19 @@ Content-Type: application/json
 
 - Thread-safe: each counter update is atomic, so concurrent requests cannot slip past the limit.
 
-### Configuration
+### 🛡 Threats and countermeasures
+
+| Threat | Countermeasure |
+| --- | --- |
+| Anyone calling endpoints that use the model | API key required on every request (`401` otherwise) |
+| Exhausting the free model quota | Rate limiting, much stricter on `/transaction/ai` |
+| Brute-forcing the API key | Rate limiting runs **before** authentication; keys need 32+ characters |
+| Timing attacks on the key comparison | Constant-time comparison (`MessageDigest.isEqual`) |
+| Bypassing the limit by forging `X-Forwarded-For` | The limiter uses only the real connection address |
+| Oversized uploads | Multipart limits of 2 MB |
+| Leaked secrets | Environment variables only; nothing sensitive in the repository |
+
+### ⚙️ Configuration
 
 | Property | Default | Description |
 | --- | --- | --- |
@@ -178,14 +154,18 @@ Content-Type: application/json
 | `spring.servlet.multipart.max-file-size` | `2MB` | Max size of an uploaded file |
 | `spring.servlet.multipart.max-request-size` | `2MB` | Max size of a multipart request |
 
-### Known limitations
+### 🚧 Known limitations
 
 These are conscious trade-offs, not oversights:
 
 - **State is in memory.** Counters live in one instance and reset on restart; with several instances each would count separately.
 - **Fixed window** allows a short burst (up to twice the limit) at a window boundary.
 - **One shared key, no users.** Transactions have no owner; anyone with the key sees everything.
-- **Behind a reverse proxy**, all clients would share the proxy's address until trusted proxy headers are configured.
+- **Behind a reverse proxy**, all clients would share the proxy’s address until trusted proxy headers are configured.
+
+And one that still needs work:
+
+- **`/api/transcribe` is in the general tier.** It calls the transcription model but is limited to 60 requests/minute, because only `/transaction/ai` is listed as an AI path.
 
 ---
 
@@ -203,15 +183,32 @@ flowchart TD
     AZ -->|yes| CTRL[Controller]
 ```
 
-### 1. Rate limiting — the first gate
+### 1. From an open API to a protected one
+
+The first version had a working AI flow but **no protection at all**: every endpoint was open, including the ones that call the language model. Anyone who found the URL could spend the model quota (which, on a free plan, is small) or write transactions into the database.
+
+This version adds (and removes):
+
+| Change | Why |
+| --- | --- |
+| **Experimental chat routes removed** (`/chatmodel`, `/api/chat`) | They forwarded raw prompts to the model with no business purpose, which only enlarged the attack surface. Their controller classes are still in the code, without any route; `/api/transcribe` is still mapped. |
+| **API key authentication** (`X-API-Key` header, Spring Security, stateless) | Only clients that know the key can use the API |
+| **Rate limiting by client IP**, with a stricter limit for `/transaction/ai` | Protects the model quota and slows down abuse |
+| **Rate limit before authentication** | Guessing the key is also throttled |
+| **Fail-fast configuration** | The app refuses to start with a missing or short API key |
+| **Upload size limit** (2 MB) | Audio files cannot exhaust memory or bandwidth |
+| **Secrets only through environment variables** | No keys in the repository |
+| **Limits configurable by properties** | Limits change without touching the code |
+
+### 2. Rate limiting — the first gate
 
 `RateLimitFilter` picks the AI or the general limiter from the request path and asks `FixedWindowRateLimiter` whether this client may continue. Doing this first means a flood of requests, even invalid ones, never reaches authentication or the model.
 
-### 2. Authentication
+### 3. Authentication
 
 `ApiKeyAuthFilter` only **identifies**: if the header matches, it marks the request as authenticated. It never rejects anything itself. The rejection comes from the authorization rule (`anyRequest().authenticated()`), which answers `401`. Identifying and deciding are separate responsibilities.
 
-### 3. The AI flow
+### 4. The AI flow
 
 For `POST /transaction/ai`, once the request is allowed in:
 
@@ -229,7 +226,7 @@ flowchart TD
     M --> R([Natural language answer])
 ```
 
-For example, the audio *"Gastei 35 reais na padaria"* is transcribed, and the model decides to call:
+For example, the audio *“Gastei 35 reais na padaria”* is transcribed, and the model decides to call:
 
 ```json
 {
@@ -240,14 +237,14 @@ For example, the audio *"Gastei 35 reais na padaria"* is transcribed, and the mo
 
 Java executes the use case, saves the record, and the result goes back to the model, which writes the final answer. **The model proposes; Java executes.**
 
-### 4. Business logic and layers
+### 5. Business logic and layers
 
-The code is organized in layers with a one-way dependency:
+The code is organized in layers with a one-way dependency (package names as they are in the code):
 
 ```
-domain          Transaction, TransactionID, Category, TransactionRepository
-application     PersistTransactionUseCase, ListTransactionByCategoryUseCase
-infrastructure  HTTP controllers, JPA persistence, security, rate limiting, configuration
+domain           Transaction, TransactionID, Category, TransactionRepository
+application      PersistTransactionUseCase, ListTransactionByCategoryUseCase
+infraestructure  HTTP controller, JPA persistence, API key, rate limiting, configuration
 ```
 
 Security and rate limiting live in the infrastructure layer on purpose: they are HTTP concerns, so the domain and use cases did not change at all.
@@ -262,7 +259,7 @@ A request crosses a chain of filters before reaching the controller. Each filter
 
 ### Authentication vs. authorization
 
-Authentication answers *"who are you?"* and authorization answers *"may you enter?"*. My filter only authenticates; a separate rule authorizes. Keeping them apart is a core Spring Security idea.
+Authentication answers *“who are you?”* and authorization answers *“may you enter?”*. My filter only authenticates; a separate rule authorizes. Keeping them apart is a core Spring Security idea.
 
 ### Rate limiting algorithms and their trade-offs
 
@@ -289,7 +286,7 @@ Keys belong in environment variables, never in the repository. I also learned th
 
 ### Spring AI with tool calling
 
-Exposing use cases as tools lets the model act without ever touching the database. It also showed me that the model's arguments are **input from an untrusted source** and deserve the same care as any user input.
+Exposing use cases as tools lets the model act without ever touching the database. It also showed me that the model’s arguments are **input from an untrusted source** and deserve the same care as any user input.
 
 ### Testing the protections by hand
 
@@ -303,17 +300,18 @@ I validated the behavior with curl and Insomnia: `401` without a key, `200` with
 | --- | --- |
 | **Per-user authentication** | Replace the shared key with JWT or OAuth2, and give each transaction an owner so users only see their own data. |
 | **Distributed rate limiting** | Move to a token bucket (for example Bucket4j) backed by Redis, so limits hold across several instances and restarts. |
-| **Validation of AI input** | Reject non-positive amounts, empty or oversized descriptions and unknown categories inside the domain, so bad tool arguments never reach the database. |
+| **Error responses** | `Transaction` rejects invalid data with an `InvalidTransactionException`, but there is no exception handler that turns it into a `400` response with a clear message. |
+| **Transcription endpoint** | Put `/api/transcribe` under the AI rate limit, or remove it together with the two controller classes left without routes. |
 | **Audio upload validation** | Check content type and file signature, not just size. |
 | **Automated security tests** | Unit tests for the limiter with a fake clock, and integration tests for `401` / `429` through the real filter chain. |
 | **Voice interaction** | Speech-to-text and text-to-speech with a provider available to me, for a full voice loop. |
 | **Observability** | Replace `System.out` with structured logging and track rate-limit hits and authentication failures. |
-| **Deployment** | Run it behind HTTPS and a reverse proxy, with trusted forwarded headers and secrets from the platform's secret store. |
+| **Deployment** | Run it behind HTTPS and a reverse proxy, with trusted forwarded headers and secrets from the platform’s secret store. |
 | **Frontend** | A dashboard with expenses per category and a recording button. |
 
 ---
 
-## 🏁 Running the project
+## ▶ Running the project
 
 ### Requirements
 
@@ -339,7 +337,7 @@ Never commit secrets. Define these as environment variables (or in a local, untr
 | `OPENROUTER_API_KEY` | Access to the model provider |
 | `APP_API_KEY` | The key clients must send in `X-API-Key` (min. 32 characters) |
 | `MYSQL_ROOT_PASSWORD` | MySQL root password |
-| `MYSQL_PASSWORD` | Password of the application's database user |
+| `MYSQL_PASSWORD` | Password of the application’s database user |
 
 Generate a strong `APP_API_KEY` locally (any of these works):
 
@@ -366,7 +364,7 @@ On Windows:
 gradlew.bat bootRun
 ```
 
-Spring Boot starts the MySQL container from `docker-compose.yaml` automatically. The API will be available at `http://localhost:8080`.
+Spring Boot starts the MySQL container from `docker-compose.yaml` automatically (database `transaction`, published on host port `3307`). The API will be available at `http://localhost:8080`.
 
 ### 4. Try it
 
@@ -399,6 +397,14 @@ In PowerShell use `curl.exe` (plain `curl` is an alias for another command) and 
 | Send 65 requests to a regular endpoint within a minute | the last ones return `429` |
 
 > 💡 Rate limiting runs before authentication, so you can test the AI limit by sending `POST /transaction/ai` **without the key header** (`401` ×5, then `429`) and never spend the model quota.
+
+### 6. Run the tests
+
+```bash
+./gradlew test
+```
+
+There are two test classes: `FinancialAiApplicationTests` loads the Spring context, and `OpenRouterChatModelIT` sends a real prompt to the model and only runs when `OPENROUTER_API_KEY` is set. There are no automated tests for the rate limiter or the security filters yet.
 
 ---
 
